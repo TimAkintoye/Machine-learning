@@ -4,7 +4,6 @@ library(FNN)
 library(gmodels)
 WorldBank<-read.csv("C:/Users/ootak/Desktop/Assignment_6/UniversalBank.csv")
 WorldBank<-WorldBank[,c(-1,-5)]
-str(Bank)
 
 #creating dummies
 library(dummies)
