@@ -1,0 +1,80 @@
+---
+title: "Assignment3"
+author: "Tim"
+date: "October 24, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+---
+title: "Assignment3"
+author: "Tim"
+date: "October 24, 2019"
+output: html_document
+---
+
+
+Machine Learning
+Assignment 3
+
+
+
+```{r}
+library(caret)
+
+library(ISLR)
+library(e1071)
+library(gmodels)
+
+library(dummies)
+library(dplyr)
+```
+
+```{r}
+FlightDelays <- read.csv("FlightDelays.csv")
+FlightDelays$CRS_DEP_TIME<-as.factor(FlightDelays$CRS_DEP_TIME)
+FlightDelays$DAY_WEEK<-as.factor(FlightDelays$DAY_WEEK)
+FlightDelays <- FlightDelays[,c(10, 8, 1, 2, 4, 13)]
+
+```
+
+```{r}
+#1
+Index_Train<-createDataPartition(FlightDelays$Flight.Status, p=0.6, list=FALSE) 
+#Use 60% of data for training and the rest for validation
+
+Train.data <-FlightDelays[Index_Train,]
+Valid.data <-FlightDelays[-Index_Train,]
+```
+
+# Building a naïve Bayes classifier
+2 >
+```{r}
+nb_model <-naiveBayes(Flight.Status~CRS_DEP_TIME+CARRIER+DEST+ORIGIN+DAY_WEEK,data = Train.data)
+nb_model
+```
+
+3 >
+```{r}
+CrossTable(x=Train.data$Flight.Status,y=Train.data$DEST, prop.chisq = FALSE) 
+prop.table(table(Train.data$DEST, Train.data$Flight.Status))
+```
+
+4 >
+```{r}
+library(pROC)
+
+Predicted_Valid_labels <-predict(nb_model,Valid.data)
+CrossTable(x=Valid.data$Flight.Status,y=Predicted_Valid_labels, prop.chisq = FALSE) 
+confusionMatrix(Predicted_Valid_labels, Valid.data$Flight.Status)
+
+Pred_Valid1_labels <-predict(nb_model,Valid.data, type = "raw")
+head(Pred_Valid1_labels)
+#Passing the second column of the predicted probabilities 
+#That column contains the probability associate to 'ontime'
+roc(Valid.data$Flight.Status, Pred_Valid1_labels[,2])
+plot.roc(Valid.data$Flight.Status,Pred_Valid1_labels[,2])
+
+```
