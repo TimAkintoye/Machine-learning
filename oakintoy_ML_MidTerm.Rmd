@@ -1,0 +1,115 @@
+---
+---
+title: "Assignment_MidTerm_"
+author: "Timothy Akintoye"
+date: "October 25, 2019"
+output: html_document
+---"
+```{r}
+library(readr)
+library(caret)
+library(tidyverse)
+library(factoextra)
+
+# Importing the dataset
+Universities <- read.csv("Universities.csv")
+View(Universities)
+
+
+# Q1 Eliminating the missing values from dataset
+data1<-na.exclude(Universities)
+summary(data1)
+
+
+# Q2
+kdata<-data1[,-c(1:3)] # selecting the continuous measurement variables.
+set.seed(123)
+data_z<-scale(kdata) # Normalizing the data, continuous measurements.
+summary(data_z)
+
+# Determining the optimal K value
+fviz_nbclust(data_z,kmeans,method = "silhouette")
+
+# 
+km<-kmeans(data_z,3)
+km
+# Plotting the output
+fviz_cluster(km,data = data_z)
+
+
+# Q3 :
+# Summary of cluster
+km$centers
+plot(c(0), xaxt = 'n', ylab = "", type = "l",
+     ylim = c(min(km$centers), max(km$centers)), xlim = c(0, 18))
+axis(1, at = c(1:17), labels = FALSE)
+text(seq(1,17,by=1),par("usr")[3]-0.2,labels = colnames(data1[,-c(1:3)]),srt = 45,pos =1,xpd = TRUE) # X Measurement names
+for (i in c(1:3))
+  lines(km$centers[i,], lty = i, lwd = 2) 
+text(x = 0.5, y = km$centers[, 1], labels = paste("Cluster", c(1:3))) # Cluster Names
+
+# From the graph, we observe
+# Cluster 1 has
+#Less applications recieved, Less applications accepted, less number of students enrolled, less number of new students from top 25%
+# Less number of new students from top 10%
+# Less number of full time under graduate
+# Out of station tution fee are less expensive
+# Very few number of rooms
+#Low cost of books
+# Number of boards are low
+# Graduation rate is low
+# less percent of faculty ratio wrt phd
+
+# Cluster 2 has
+# Higher Graduation rate             
+# High percentage faculty ratio w.r.t PHD   
+# High in-state tutuion fee
+# More number of rooms             
+# Number of boards are high        
+# More number of new students from top 25%
+# More number of new students from top 10%
+
+# Cluster 3 has
+#More number of applications recieved, more number of applications accepted, more number of new students enrolled
+#More number of part time graduates
+#More number of full time graduates
+#Huge amount of estimated book cost
+#Huge amount of personal expenses
+#Higher Student to faculty ratio
+
+# Q4 : From the above model, we can relate the cluster labels to the categorical varialbes.
+bin<-cbind(data1[,c(1:3)],km$cluster)
+bin<-as.data.frame(bin)
+bin$Public..1...Private..2.<-factor(bin$Public..1...Private..2.,levels = c("1","2"),labels = c("Public","Private"))
+bin$`km$cluster`<-factor(bin$`km$cluster`,levels = c("1","2","3"),labels = c("Cluster 1","Cluster 2","Cluster 3"))
+# Below chart explains the relation between state,private/public and Clusters
+ggplot(bin,aes(x=bin$State,y=bin$Public..1...Private..2.,color=bin$`km$cluster`))+geom_point()
+
+# Q5 : The other information which can explain the clusters are
+km$betweenss # It is the mean of distance between the cluster centers
+km$withinss # It is the mean of distance within the cluster centers
+
+
+# Q6 : Considering the Tufts University by taking the nearest average value of the cluster.
+km1<-kmeans(data1[,-c(1:3)],centers = 3)
+m1<-mean(km1$centers[1,]) # Mean of Cluster 1
+m2<-mean(km1$centers[2,]) # Mean of cluster 2
+m3<-mean(km1$centers[3,]) # Mean of cluster 3
+s<-Universities[Universities$College.Name=="Tufts University",]
+View(s)
+s1<-apply(s[,-c(1:3,10)],1,mean) # Mean of record
+dist(rbind(s1,m1)) # Euclideam distance betweewn  cluster 1 mean and Tufts university data
+dist(rbind(s1,m2))
+dist(rbind(s1,m3))
+s$X..PT.undergrad<-1596.33 # From the above, Mean value which is near to cluster 1. Hence replacing the missing value with mean value
+data2<-rbind(data1,s)
+View(data2)
+data2_z<-scale(data2[,-c(1:3)])
+km2<-kmeans(data2_z,3)
+data3<-cbind(data2,km2$cluster)
+data3[472,] # From the observation, this uniersity falls in Cluster 2
+
+
+
+```
+
