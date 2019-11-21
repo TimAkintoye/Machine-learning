@@ -1,0 +1,181 @@
+---
+title: "assignment 4"
+author: "Timothy O Akintoye"
+date: "11/15/2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(dplyr)
+library(ggvis)
+library(cluster)
+library(class)
+library(FNN)
+library(ggplot2)
+```
+
+```{r}
+library(caret)
+library(ISLR)
+library(devtools)
+library(htmltools)
+#Read Data 
+cereals_Data <- read.csv("Cereals.csv")
+
+#Remove all records with missing measurements from the dataset.
+cereals <- na.omit(cereals_Data)
+cereals_Data1 <- cereals[,-c(1,2,3)]
+str(cereals_Data1)
+```
+
+```{r}
+library(dummies)
+
+# ceate dummy variables for shelf 
+cereals_Data1$shelf <- as.factor(cereals_Data1$shelf)
+cereals_dummy <- dummyVars(~shelf,data=cereals_Data1)
+head(predict(cereals_dummy,cereals_Data1))
+cereal <- dummy.data.frame(cereals_Data1, names = c("shelf"), sep= ".")
+```
+# Hierarchical Clustering
+* . Applying hierarchical clustering to the data using Euclidean distance to the normalized measurements.
+* - Use Agnes to compare the clustering from  single linkage, complete linkage, average linkage, and Ward. Choose the best method ?.
+
+```{r}
+# Normalizing data
+cereal_normalized <- scale(cereal)
+
+library(tidyverse)
+# methods to assess
+Agnes <- c("single", "ward", "complete", "average")
+names(Agnes) <- c("single", "ward", "complete", "average")
+# function to compute coefficient
+ac <- function(x) {
+  agnes(cereal_normalized, method = x)$ac}
+map_dbl(Agnes, ac)
+```
+* Ward's method is the highest.
+
+# Applying hierarchical clustering using Euclidean distance and Ward's method
+```{r}
+library(HAC)
+library(stats)
+dist <- dist(cereal_normalized, method = "euclidean")
+hc <- hclust(dist, method = "ward.D2")
+plot(hc, cex = 0.6, hang = -1, main = "Dendrogram of agnes")
+```
+
+* Cutting the tree to 4 clusters, using the cutree() function
+```{r}
+# Cut tree into 4 groups
+clusters <- cutree(hc, k = 4)
+table(clusters)
+# Store the clusters in a data frame along with the cereals data
+cereals_clusters <- cbind(clusters, cereal_normalized)
+```
+
+```{r}
+colnames(cereals_clusters)[1] <- "clusters"
+head(cereals_clusters)
+```
+ 
+* We can display the dendrogram for hierarchical clustering, using the plot() function
+```{r}
+plot(hc, cex= 0.6, hang = -1)
+#Plot clusters being surrounded by a border, using the rect.hclust() function
+rect.hclust(hc, k = 4, border = 2:7)
+abline(h = 14, col = 'red')
+```
+
+#	Comment on the structure of the clusters and on their stability. Hint: To check stability, partition the data and see how well clusters formed based on one part apply to the other part. To do this: 
+
+```{r}
+# set labels as cluster membership and cereal name
+row.names(cereal_normalized) <- paste(clusters, ": ", row.names(cereal), sep = "")
+
+heatmap(as.matrix(cereal_normalized), Colv = NA, hclustfun = hclust, 
+        col=rev(paste("gray",1:99,sep="")))
+```
+ 
+# checking stability.
+* we will partiion the data to 2 groups A and B
+```{r}
+A<-cereal[1:60,] # Partition A
+B<-cereal[61:74,] # Partition B
+A_norm <- scale(A)
+B_norm <- scale(B)
+```
+ 
+* we will use thw same method for clustering
+```{r, fig.height=7, fig.width=12}
+library(stats)
+library(HAC)
+dist_A <- dist(A_norm, method = "euclidean")
+h_A <- hclust(dist_A, method = "ward.D")
+clusters_A <- cutree(h_A, k = 4)
+# Store the clusters in a data frame along with the cereals data
+cereal_A <- cbind(clusters_A, A_norm)
+colnames(cereal_A)[1] <- "clust_A"
+plot(h_A, cex= 0.6, hang = -1)
+#Plot clusters being surrounded by a border, using the rect.hclust() function
+rect.hclust(h_A, k = 4, border = 2:7)
+abline(h = 20, col = 'red')
+table(clusters_A)
+```
+
+# using tapply to calculate the centroids
+```{r}
+hm <- tapply(A_norm, list(rep(cutree(h_A, 4), ncol(A_norm)), col(A_norm)), mean)
+colnames(hm) <-colnames(cereal)
+hm
+```
+
+* we can Visualize the characteristics of clusters of prtition A
+```{r}
+library(hrbrthemes)
+library(GGally)
+library(viridis)
+ggparcoord((hm),
+           columns = 1:15, groupColumn = 1, 
+           showPoints = TRUE, 
+           alphaLines = 0.3 
+)
+```
+
+```{r}
+library(factoextra)
+# predicting B records
+a<-data.frame(observations=seq(1,14,1),cluster=rep(0,14))
+for(i in 0:14)
+{
+  x1<-as.data.frame(rbind(hm,B_norm[i,]))
+  y1<-as.matrix(get_dist(x1))
+  a[i,2]<-which.min(y1[4,-4])
+}
+a
+```
+```{r}
+cbind(partition=a$cluster,alldata=cereals_clusters[61:74,1])
+
+```
+
+```{r}
+table(a$cluster==cereals_clusters[61:74,1])
+```
+* the accuracy is not to high
+
+* Extracting clustersrs
+```{r}
+groups <- clusters
+print_clusters <- function(labels, k) {
+  for(i in 1:k) {
+    print(paste("cluster", i))
+print(cereals[labels==i,c("calories","protein","fat","sodium","fiber","carbo","sugars","potass","vitamins")])}}
+print_clusters(groups, 4)
+```
+* Q 4
+```{r}
+#From the above analysis, the cluster 1 has the highest ratings of neutritional factors. then it will be the "healthy cluster". 
+# We need to essentially normalize the data since the rang of data is not in the same scale Therefore, normalizing the data is required.
